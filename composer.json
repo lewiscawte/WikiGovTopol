@@ -1,5 +1,12 @@
 {
     "require": {
-        "addwiki/mediawiki-api": "~0.7.0"
+        "addwiki/mediawiki-api": "~0.7.0",
+        "addwiki/wikibase-api": "~0.8.0",
+        "data-values/common": "~0.4.0",
+        "data-values/data-values": "~2.0",
+        "data-values/geo": "~4.0",
+        "data-values/interfaces": "~0.2.0 || ~0.1.5",
+        "data-values/number": "~0.10.0",
+        "data-values/time": "~1.0"
     }
 }

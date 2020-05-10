@@ -1,75 +1,40 @@
 <?php
 // Load all the stuff
 require_once( __DIR__ . '/vendor/autoload.php' );
-require_once( __DIR__ . '/user-config.php' );
 
-// Log in to a wiki
-$api = new \Mediawiki\Api\MediawikiApi( 'https://en.wikipedia.org/w/api.php' );
-$api->login( new \Mediawiki\Api\ApiUser( 'Lcawte', MW_ACCOUNT_PASS ) );
-$services = new \Mediawiki\Api\MediawikiFactory( $api );
+$guzzleClient = new GuzzleHttp\Client(['base_uri' => 'https://mwph-api.toolforge.org/templates/']);
 
-/*
-// Get a page
-$page = $services->newPageGetter()->getFromPageId( 19065069 );
-$content = $page->getRevisions()->getLatest()->getContent()->getData();
-*/
+// @ToDo: Change this and have a way to actually feed page names in...
+$page = "Boris Johnson";
 
-$params = [
-	'pageid' => 19065069,
-	'prop' => 'wikitext',
-	'section' => 0,
-	'contentmodel' => 'wikitext',
-	'utf8' => 1,
-	'formatversion' => 2,
-];
-$request = new \Mediawiki\Api\SimpleRequest( 'parse', $params );
-$response = $api->getRequest( $request );
-$wikitext = $response['parse'];
-var_dump( $wikitext );
-processWikitext( $wikitext['wikitext'] );
+$result = getTemplateData( $page, $guzzleClient );
 
-function processWikitext( $wikitext ) {
-	$lines = explode( "\n", $wikitext );
-	$infobox = selectInfobox( $lines );
-	$infobox = processInfobox( $infobox );
-	printf( "Clean Infobox data" );
-	var_dump( $infobox );
-}
+function getTemplateData( $page, $guzzle ) {
+	$uglyBox = NULL;
+	$box = array();
 
-function selectInfobox( $content ) {
-	$infobox = array();
-	//$ibOpen = 0;
-	//$ibClose = 0;
-	$ibLine = 0;
-	$ibActive = false;
+	$response = $guzzle->request( 'GET', $page );
+	//var_dump( $response->getBody()->getContents() );
+	$data = json_decode( $response->getBody()->getContents(), true );
 
-	foreach( $content as $line=>$value ) {
-		if( strpos( strtolower( $value ), '{{infobox officeholder' ) !== false ) {
-			printf( "start @ " . $line );
-			$ibActive = true;
-			//$ibOpen++;
-			$ibLine++;
-			$infobox[$ibLine] = $value;
-		} else if( $ibActive == true /*&& $ibOpen !== $ibClose*/ ) {
-			// If we're in the infobox, but we've not closed it yet...
-			$ibLine++;
-			$infobox[$ibLine] = $value;
-			if( $value === "}}") {
-				$ibActive = false;
+	foreach( $data as $ib ) {
+		if( trim( $ib['name'] ) === "Infobox officeholder" ) {
+			$uglyBox = $ib['params'];
+			break;
+		}
+	}
+
+	// Tidy up the box a little
+	if( is_array( $uglyBox ) ) {
+		foreach( $uglyBox as $param=>$value ) {
+			$value = trim( $value );
+			if( !empty( $param ) ) {
+				$box[$param] = $value;
+			} else {
+				$param = null;
 			}
 		}
 	}
 
-	return $infobox;
+	return $box;
 }
-
-function processInfobox( array $box ) {
-	$completeBox = array();
-	foreach( $box as $key=>$value ) {
-		$tmpArray = explode( '=', $value );
-		$tmpKey = preg_replace("/[^A-Za-z0-9 ]/", '', $tmpArray[0]);
-		$completeBox[$tmpKey] = $tmpArray[1];
-	}
-	return $completeBox;
-}
-?>
